@@ -109,6 +109,46 @@ const REJECT_TEXT = new Set([
   "more",
 ]);
 
+const AFRICA_NO_FILTER_NAVIGATION_PATHS = new Set([
+  "/",
+  "/about",
+  "/learn",
+  "/learn-and-upskill",
+  "/stories",
+  "/success-stories",
+  "/opportunities",
+]);
+
+function isAfricaNoFilterNavigation(baseUrl: string, href: string): boolean {
+  try {
+    const sourceHost = new URL(baseUrl).hostname.toLowerCase();
+    const candidate = new URL(href);
+    const candidateHost = candidate.hostname.toLowerCase();
+    const isAfricaNoFilterHost = (host: string) =>
+      host === "africanofilter.org" || host.endsWith(".africanofilter.org");
+
+    if (!isAfricaNoFilterHost(sourceHost) || !isAfricaNoFilterHost(candidateHost)) {
+      return false;
+    }
+
+    const path = candidate.pathname.replace(/\/+$/, "").toLowerCase() || "/";
+    if (
+      candidateHost === "opportunity.africanofilter.org" &&
+      AFRICA_NO_FILTER_NAVIGATION_PATHS.has(path)
+    ) {
+      return true;
+    }
+
+    return (
+      (candidateHost === "africanofilter.org" ||
+        candidateHost === "www.africanofilter.org") &&
+      path === "/what-we-do/community"
+    );
+  } catch {
+    return false;
+  }
+}
+
 export interface ExtractOptions {
   /**
    * Optional CSS selector for the container that holds listing rows.
@@ -151,6 +191,7 @@ export class ListingExtractor extends BaseExtractor {
       }
 
       const absolute = absoluteUrl(baseUrl, href);
+      if (isAfricaNoFilterNavigation(baseUrl, absolute)) return;
       if (seen.has(absolute)) return;
 
       const rawText = $(element).text().replace(/\s+/g, " ").trim();

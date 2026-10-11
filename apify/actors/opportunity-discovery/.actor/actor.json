@@ -1,0 +1,9 @@
+{
+  "actorSpecification": 1,
+  "name": "afriscout-opportunity-discovery",
+  "title": "AfriScout Opportunity Discovery",
+  "description": "Crawls a registered public opportunity source and returns normalized opportunity data for AfriScout.",
+  "version": "0.3",
+  "buildTag": "latest",
+  "dockerfile": "./Dockerfile"
+}

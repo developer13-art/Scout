@@ -2,8 +2,9 @@ import type { Request, Response } from "express";
 import * as RunService from "../services/apify/run.service";
 import * as IngestionService from "../services/apify/runIngestion.service";
 import { enqueueRunApifyActor } from "../jobs/definitions/runApifyActor.job";
-import { apifyActors, abortActorRun } from "../services/apify/actor.service";
+import { apifyActors, abortActorRun, startActorRun } from "../services/apify/actor.service";
 import { apifyConfig } from "../config/apify";
+import { assertDatabaseJobRunnerReady } from "../jobs/runner";
 import { asyncHandler } from "../utils/asyncHandler";
 import { logger } from "../config/logger";
 
@@ -40,6 +41,7 @@ export const trigger = asyncHandler(async (req: Request, res: Response) => {
     });
     return;
   }
+  await assertDatabaseJobRunnerReady();
 
   const run = await IngestionService.triggerIngestion({
     sourceId,
@@ -47,12 +49,25 @@ export const trigger = asyncHandler(async (req: Request, res: Response) => {
     createdBy: req.user?.id ?? null,
   });
 
+  let apifyRunId: string | undefined;
   try {
+    const input = await IngestionService.buildActorInput(sourceId);
+    const actorRun = await startActorRun(apifyActors.opportunityDiscovery, input, {
+      memoryMb: apifyConfig.defaultMemoryMb,
+      timeoutSeconds: apifyConfig.defaultTimeoutSeconds,
+    });
+    apifyRunId = actorRun.id;
+    const startedRun = await RunService.markRunStarted(run.id, actorRun.id);
+
     await enqueueRunApifyActor({
       sourceId,
       runId: run.id,
       actorId: apifyActors.opportunityDiscovery,
+      apifyRunId: actorRun.id,
     });
+
+    logger.info({ sourceId, runId: run.id, apifyRunId }, "actor_run_started_and_tracking_enqueued");
+    res.status(202).json({ data: startedRun });
   } catch (error) {
     try {
       await RunService.markRunFinished({
@@ -64,9 +79,14 @@ export const trigger = asyncHandler(async (req: Request, res: Response) => {
         itemsDuplicate: 0,
         itemsUnchanged: 0,
         itemsInvalid: 0,
-        errorMessage: "The discovery job could not be queued.",
+        errorMessage: apifyRunId
+          ? `Apify started run ${apifyRunId}, but run tracking could not be prepared.`
+          : error instanceof Error
+            ? error.message
+            : "The Apify discovery run could not be started.",
         errorDetails: {
           reason: error instanceof Error ? error.message : "Unknown queue error",
+          ...(apifyRunId ? { apifyRunId } : {}),
         },
       });
     } catch (statusError) {
@@ -75,12 +95,9 @@ export const trigger = asyncHandler(async (req: Request, res: Response) => {
         "actor_run_queue_failure_status_update_failed",
       );
     }
-    logger.error({ err: error, sourceId, runId: run.id }, "actor_run_queue_failed");
+    logger.error({ err: error, sourceId, runId: run.id, apifyRunId }, "actor_run_start_or_queue_failed");
     throw error;
   }
-
-  logger.info({ sourceId, runId: run.id }, "actor_run_enqueued");
-  res.status(202).json({ data: run });
 });
 
 export const abort = asyncHandler(async (req: Request, res: Response) => {

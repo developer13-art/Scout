@@ -21,8 +21,8 @@ export async function startActorRun(
   }
 
   const query: Record<string, string | number> = {};
-  if (options.memoryMb) query.memory = options.memoryMb;
-  if (options.timeoutSeconds) query.timeout = options.timeoutSeconds;
+  query.memory = options.memoryMb ?? apifyConfig.defaultMemoryMb;
+  query.timeout = options.timeoutSeconds ?? apifyConfig.defaultTimeoutSeconds;
 
   const response = await apifyRequestWithRetry<{ data: ActorRunStartResult }>(
     `/acts/${actorId}/runs`,

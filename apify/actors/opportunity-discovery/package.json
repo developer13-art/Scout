@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/extractors/opportunity-extractors.test.ts"
   },
   "dependencies": {
     "apify": "^3.2.0",

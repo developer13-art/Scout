@@ -20,6 +20,7 @@ export interface SourceRun {
   itemsImported: number;
   itemsUpdated: number;
   itemsDuplicate: number;
+  itemsUnchanged: number;
   itemsInvalid: number;
   startedAt?: string | null;
   finishedAt?: string | null;
@@ -43,6 +44,7 @@ export interface RawOpportunity {
   sourceRunId?: string | null;
   apifyDatasetItemId?: string | null;
   payloadHash: string;
+  payload?: Record<string, unknown> | null;
   fetchedAt: string;
   processedAt?: string | null;
   processingStatus: RawStatus;

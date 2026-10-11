@@ -36,10 +36,11 @@ export async function processApifyJob(job: { name: string; payload: unknown }): 
     return;
   }
 
-  const { sourceId, runId, actorId } = job.payload as {
+  const { sourceId, runId, actorId, apifyRunId } = job.payload as {
     sourceId: string;
     runId: string;
     actorId: string;
+    apifyRunId?: string;
   };
 
   const source = await prisma.source.findUnique({ where: { id: sourceId } });
@@ -50,11 +51,18 @@ export async function processApifyJob(job: { name: string; payload: unknown }): 
   }
 
   try {
-    const actorInput = await buildActorInput(sourceId);
-    const started = await startActorRun(actorId, actorInput);
+    const started = apifyRunId
+      ? await getActorRun(apifyRunId)
+      : await startActorRun(actorId, await buildActorInput(sourceId), {
+          memoryMb: env.APIFY_DEFAULT_MEMORY_MB,
+          timeoutSeconds: env.APIFY_DEFAULT_TIMEOUT_SECONDS,
+        });
 
-    await markRunStarted(runId, started.id);
-    logger.info({ runId, apifyRunId: started.id, sourceId, actorId }, "apify_run_started");
+    if (!apifyRunId) await markRunStarted(runId, started.id);
+    logger.info(
+      { runId, apifyRunId: started.id, sourceId, actorId },
+      apifyRunId ? "apify_run_tracking_started" : "apify_run_started",
+    );
 
     const maxWaitMs = env.APIFY_DEFAULT_TIMEOUT_SECONDS * 1000;
     const startTime = Date.now();

@@ -38,9 +38,14 @@ export function SourceDetails() {
 
   const runDiscovery = useMutation({
     mutationFn: () => (id ? actorRunService.trigger(id) : Promise.resolve(null)),
-    onSuccess: () => {
-      setMessage("Discovery run enqueued. It will appear in Recent runs shortly.");
+    onSuccess: (run) => {
+      setMessage(
+        run?.apifyRunId
+          ? `Apify discovery started. Apify run ID: ${run.apifyRunId}`
+          : "Discovery was queued. Check Recent runs for its status.",
+      );
       qc.invalidateQueries({ queryKey: ["actor-runs"] });
+      qc.invalidateQueries({ queryKey: ["source", id] });
     },
     onError: (error) => {
       setMessage(error instanceof Error ? error.message : "Unable to start the discovery run.");

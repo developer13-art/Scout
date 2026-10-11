@@ -48,7 +48,7 @@ const EnvSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
   RATE_LIMIT_API_KEY_MAX: z.coerce.number().int().positive().default(600),
 
-  APIFY_TOKEN: z.string().default(""),
+  APIFY_TOKEN: z.string().trim().default(""),
   APIFY_BASE_URL: z.string().url().default("https://api.apify.com/v2"),
   APIFY_OPPORTUNITY_DISCOVERY_ACTOR_ID: z.string().default(""),
   APIFY_DOCUMENT_EXTRACTOR_ACTOR_ID: z.string().default(""),
@@ -138,9 +138,17 @@ const EnvSchema = z.object({
   PLAN_ENTERPRISE_RPM: z.coerce.number().int().positive().default(6000),
 });
 
+const opportunityDiscoveryActorId =
+  process.env.APIFY_OPPORTUNITY_DISCOVERY_ACTOR_ID?.trim() ||
+  process.env.APIFY_OPPORTUNITY_DISCOVERY_ACTOR?.trim() ||
+  "";
+const normalizedEnvironment = {
+  ...process.env,
+  APIFY_OPPORTUNITY_DISCOVERY_ACTOR_ID: opportunityDiscoveryActorId,
+};
 const envSource = process.env.NEON_DATABASE_URL
-  ? { ...process.env, DATABASE_URL: process.env.NEON_DATABASE_URL }
-  : process.env;
+  ? { ...normalizedEnvironment, DATABASE_URL: process.env.NEON_DATABASE_URL }
+  : normalizedEnvironment;
 const parsed = EnvSchema.safeParse(envSource);
 
 if (!parsed.success) {

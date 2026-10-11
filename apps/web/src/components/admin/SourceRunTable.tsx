@@ -34,7 +34,7 @@ export function SourceRunTable({ runs }: SourceRunTableProps) {
     {
       key: "started",
       header: "Started",
-      cell: (run) => (run.startedAt ? formatDateTime(run.startedAt) : "-"),
+      cell: (run) => formatDateTime(run.startedAt ?? run.createdAt),
     },
     {
       key: "status",

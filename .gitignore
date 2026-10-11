@@ -64,7 +64,6 @@ docker-compose.override.yml
 # Apify
 apify_storage/
 apify/actors/*/apify_storage/
-apify/actors/*/.actor/
 
 # Cache
 .cache/

@@ -65,7 +65,10 @@ export function canTriggerIngestion(source: SourceIngestionEligibility): boolean
   return source.active || source.verifications?.[0]?.status === "VERIFIED";
 }
 
-export async function buildActorInput(sourceId: string) {
+export async function buildActorInput(
+  sourceId: string,
+  overrides: { maxItems?: number } = {},
+) {
   const source = await prisma.source.findUnique({
     where: { id: sourceId },
     select: {
@@ -89,9 +92,11 @@ export async function buildActorInput(sourceId: string) {
     country: source.countryCode ?? undefined,
     category: source.category ?? undefined,
     adapter: source.adapter,
-    maxItems: Number.isInteger(metadata.maxItems) && metadata.maxItems! > 0
-      ? metadata.maxItems
-      : undefined,
+    maxItems:
+      overrides.maxItems ??
+      (Number.isInteger(metadata.maxItems) && metadata.maxItems! > 0
+        ? metadata.maxItems
+        : undefined),
     waitUntil: metadata.waitUntil,
     waitForSelector: metadata.waitForSelector,
     waitExtraMs: metadata.waitExtraMs,

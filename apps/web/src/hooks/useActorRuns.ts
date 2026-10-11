@@ -11,6 +11,10 @@ export function useActorRuns(
   const query = useQuery({
     queryKey: ["actor-runs", filters, page, pageSize],
     queryFn: () => actorRunService.list(filters, page, pageSize),
+    refetchInterval: (state) =>
+      state.state.data?.some((run) => run.status === "QUEUED" || run.status === "RUNNING")
+        ? 5_000
+        : false,
   });
 
   const trigger = useMutation({

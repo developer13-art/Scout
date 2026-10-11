@@ -1,6 +1,7 @@
 import { BaseExtractor } from "./base.extractor.js";
 import type { CheerioAPI } from "cheerio";
 import { absoluteUrl } from "../utils/crawler.js";
+import { extractOrganization as extractOrganizationFromText } from "./organization.extractor.js";
 
 export class DetailExtractor extends BaseExtractor {
   private structuredData($: CheerioAPI): Record<string, unknown>[] {
@@ -128,7 +129,21 @@ export class DetailExtractor extends BaseExtractor {
   }
 
   // Extract the publishing organization from common markup and meta tags.
-  extractOrganization($: CheerioAPI): string | null {
+  extractOrganization(
+    $: CheerioAPI,
+    titleFallback?: string | null,
+  ): string | null {
+    const titleCandidates = [
+      titleFallback,
+      $("h1").first().text(),
+      $("meta[property='og:title']").attr("content"),
+    ];
+    for (const candidate of titleCandidates) {
+      if (!candidate) continue;
+      const organization = extractOrganizationFromText(candidate);
+      if (organization) return organization;
+    }
+
     const structured = this.structuredData($).flatMap((record) => [
       this.valueText(record.publisher),
       this.valueText(record.provider),
@@ -136,8 +151,6 @@ export class DetailExtractor extends BaseExtractor {
       this.valueText(record.organizer),
     ]);
     const candidates = [
-      $("meta[name='author']").attr("content"),
-      $("meta[property='og:site_name']").attr("content"),
       ...structured,
       $("[data-org]").first().text(),
       $(".organization").first().text(),
@@ -146,6 +159,15 @@ export class DetailExtractor extends BaseExtractor {
     ];
 
     for (const candidate of candidates) {
+      const cleaned = this.clean(candidate);
+      if (cleaned && cleaned.length >= 3 && cleaned.length <= 200) return cleaned;
+    }
+
+    const metadataCandidates = [
+      $("meta[name='author']").attr("content"),
+      $("meta[property='og:site_name']").attr("content"),
+    ];
+    for (const candidate of metadataCandidates) {
       const cleaned = this.clean(candidate);
       if (cleaned && cleaned.length >= 3 && cleaned.length <= 200) return cleaned;
     }
@@ -215,6 +237,26 @@ export class DetailExtractor extends BaseExtractor {
     const labels = kind === "eligibility"
       ? "eligibility|who can apply|eligible applicants?"
       : "requirements?|what you need";
+    const labelPattern = kind === "eligibility"
+      ? /^(?:eligibility(?: criteria)?|who can apply|eligible applicants?)\s*[:\-–]?\s*$/i
+      : /^(?:requirements?|what you need|application requirements?)\s*[:\-–]?\s*$/i;
+    const headingSelector = "h1, h2, h3, h4, h5, h6";
+
+    let section: string | null = null;
+    $(`${headingSelector}, strong, b, dt`).each((_i, element) => {
+      if (section) return;
+      const heading = this.clean($(element).text());
+      if (!heading || !labelPattern.test(heading)) return;
+
+      const following = $(element).nextUntil(headingSelector).text();
+      const parentText = $(element).parent().text().replace(heading, "");
+      const candidate = this.clean(following) ?? this.clean(parentText);
+      if (candidate && candidate.length >= 12) {
+        section = candidate.slice(0, 700);
+      }
+    });
+    if (section) return section;
+
     const text = $("body").text().replace(/\s+/g, " ");
     const match = text.match(new RegExp(`(?:${labels})\\s*[:\\-–]\\s*(.{12,700}?)(?=(?:eligibility|who can apply|requirements?|application process|how to apply|deadline|closing date)\\s*[:\\-–]|$)`, "i"));
     return match?.[1]?.trim() ?? null;

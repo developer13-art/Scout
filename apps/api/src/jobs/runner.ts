@@ -4,6 +4,7 @@ import { env } from "../config/env";
 import { prisma } from "../config/database";
 import { logger } from "../config/logger";
 import { dispatchDatabaseJob } from "./dispatch";
+import { ConflictError } from "../utils/errors";
 
 interface ClaimedJob {
   id: string;
@@ -23,6 +24,19 @@ async function isBackgroundJobsTableAvailable(): Promise<boolean> {
     SELECT to_regclass('public."background_jobs"')::text AS oid
   `;
   return rows[0]?.oid !== null && rows[0]?.oid !== undefined;
+}
+
+export async function assertDatabaseJobRunnerReady(): Promise<void> {
+  if (!env.DATABASE_JOB_RUNNER_ENABLED) {
+    throw new ConflictError(
+      "Discovery tracking is disabled because the database job runner is turned off.",
+    );
+  }
+  if (!(await isBackgroundJobsTableAvailable())) {
+    throw new ConflictError(
+      "Discovery tracking is unavailable because the background jobs table is missing. Apply database migrations first.",
+    );
+  }
 }
 
 async function claimNextJob(): Promise<ClaimedJob | null> {

@@ -46,12 +46,17 @@ export class GenericListingAdapter extends BaseAdapter {
     const description = this.detail.extractDescription($);
     const location = this.detail.extractLocation($);
     const context = [title, description, location].filter(Boolean).join(" ");
-    const country = this.inferCountryCode(context) ?? input.country ?? null;
-    const category = this.inferCategory(context) ?? input.category ?? null;
+    const panAfricanSource = this.isPanAfricanSource(input.sourceUrl);
+    const country =
+      this.inferCountryCode(context) ??
+      (panAfricanSource ? null : input.country ?? null);
+    const category =
+      this.inferCategory(context) ??
+      (panAfricanSource ? null : input.category ?? null);
 
     return {
       title,
-      organization: this.detail.extractOrganization($),
+      organization: this.detail.extractOrganization($, item.title),
       country,
       location: location ?? this.countryName(country),
       category,
@@ -129,9 +134,21 @@ export class GenericListingAdapter extends BaseAdapter {
       [/\b(jobs?|vacancies|employment|career opportunity)\b/i, "EMPLOYMENT"],
       [/\b(tenders?|procurement|rfp|rfq|request for proposal|request for quotation)\b/i, "PROCUREMENT"],
       [/\b(contracts?|consultancy)\b/i, "CONTRACTS"],
-      [/\b(training|workshop|course)\b/i, "TRAINING"],
+      [/\b(training|workshop|courses?|programmes?|programs?)\b/i, "TRAINING"],
       [/\b(research|researcher)\b/i, "RESEARCH"],
     ];
     return categories.find(([signal]) => signal.test(text))?.[1] ?? null;
+  }
+
+  private isPanAfricanSource(sourceUrl: string): boolean {
+    try {
+      const hostname = new URL(sourceUrl).hostname.toLowerCase();
+      return (
+        hostname === "africanofilter.org" ||
+        hostname.endsWith(".africanofilter.org")
+      );
+    } catch {
+      return false;
+    }
   }
 }

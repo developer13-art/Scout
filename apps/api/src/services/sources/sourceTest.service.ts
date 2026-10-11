@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../../config/database";
 import { apifyActors, startActorRun } from "../apify/actor.service";
+import { buildActorInput } from "../apify/runIngestion.service";
 import { fetchDatasetItems } from "../apify/dataset.service";
 import { NotFoundError } from "../../utils/errors";
 import { logger } from "../../config/logger";
@@ -13,13 +14,6 @@ export interface SourceTestResult {
   runId: string | null;
   errorMessage: string | null;
   verificationId?: string;
-}
-
-interface SourceMetadata {
-  waitUntil?: "load" | "domcontentloaded" | "networkidle" | "commit";
-  waitForSelector?: string;
-  waitExtraMs?: number;
-  listingSelector?: string;
 }
 
 export async function testSource(sourceId: string): Promise<SourceTestResult> {
@@ -48,22 +42,9 @@ export async function testSource(sourceId: string): Promise<SourceTestResult> {
     };
   }
 
-  const metadata = (source.metadata as SourceMetadata | null) ?? {};
-
   try {
-    const run = await startActorRun(apifyActors.opportunityDiscovery, {
-      sourceId: source.id,
-      sourceUrl: source.url,
-      sourceType: source.sourceType,
-      country: source.countryCode ?? undefined,
-      category: source.category ?? undefined,
-      adapter: source.adapter,
-      maxItems: 5,
-      waitUntil: metadata.waitUntil,
-      waitForSelector: metadata.waitForSelector,
-      waitExtraMs: metadata.waitExtraMs,
-      listingSelector: metadata.listingSelector,
-    });
+    const input = await buildActorInput(sourceId, { maxItems: 5 });
+    const run = await startActorRun(apifyActors.opportunityDiscovery, input);
 
     // Wait for the Actor to produce items. Playwright boots Chromium and
     // renders the page, so we give it up to 90 seconds.

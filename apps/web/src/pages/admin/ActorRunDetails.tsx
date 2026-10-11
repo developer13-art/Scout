@@ -16,6 +16,10 @@ export function ActorRunDetails() {
     queryKey: ["actor-run", id],
     queryFn: () => (id ? actorRunService.get(id) : null),
     enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data && ["QUEUED", "RUNNING"].includes(query.state.data.status)
+        ? 5_000
+        : false,
   });
   const rawQuery = useQuery({
     queryKey: ["actor-run", id, "raw"],
@@ -52,6 +56,22 @@ export function ActorRunDetails() {
                 {run.trigger}
               </li>
               <li>
+                <span className="font-medium text-neutral-900">Source:</span>{" "}
+                {run.sourceId || "Not assigned"}
+              </li>
+              <li>
+                <span className="font-medium text-neutral-900">Actor:</span>{" "}
+                {run.actorId || "Not assigned"}
+              </li>
+              <li>
+                <span className="font-medium text-neutral-900">Apify run:</span>{" "}
+                {run.apifyRunId || "Not started"}
+              </li>
+              <li>
+                <span className="font-medium text-neutral-900">Dataset:</span>{" "}
+                {run.apifyDatasetId || "Not available"}
+              </li>
+              <li>
                 <span className="font-medium text-neutral-900">Found:</span>{" "}
                 {run.itemsFound}
               </li>
@@ -66,6 +86,10 @@ export function ActorRunDetails() {
               <li>
                 <span className="font-medium text-neutral-900">Duplicates:</span>{" "}
                 {run.itemsDuplicate}
+              </li>
+              <li>
+                <span className="font-medium text-neutral-900">Unchanged:</span>{" "}
+                {run.itemsUnchanged}
               </li>
               <li>
                 <span className="font-medium text-neutral-900">Invalid:</span>{" "}
@@ -106,6 +130,19 @@ export function ActorRunDetails() {
                     <p className="text-neutral-500">
                       Fetched {formatDateTime(raw.fetchedAt)}
                     </p>
+                    {raw.processingError ? (
+                      <p className="mt-1 text-red-600">{raw.processingError}</p>
+                    ) : null}
+                    {raw.payload ? (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer font-medium text-primary-700">
+                          View raw Apify item
+                        </summary>
+                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-neutral-50 p-2 text-[11px] text-neutral-700">
+                          {JSON.stringify(raw.payload, null, 2)}
+                        </pre>
+                      </details>
+                    ) : null}
                   </li>
                 ))}
               </ul>
