@@ -4,7 +4,8 @@ import { apifyActors } from "./actor.service";
 import { fetchAllDatasetItems } from "./dataset.service";
 import { createSourceRun, markRunFinished, markRunStarted } from "./run.service";
 import { ingestRawItems } from "../opportunities/ingestion.service";
-import { enqueueProcessOpportunity } from "../../jobs/definitions/processOpportunity.job";
+import { PROCESS_OPPORTUNITY_JOB } from "../../jobs/definitions/processOpportunity.job";
+import { processPipelineJob } from "../../jobs/workers/pipeline.worker";
 import type { RunTrigger } from "@prisma/client";
 import { ConflictError } from "../../utils/errors";
 
@@ -142,17 +143,25 @@ export async function finalizeIngestion(input: {
     })),
   );
 
-  // After raw items are stored, enqueue pipeline processing for each one.
+  // Process imported items before completing the run so opportunities are
+  // available immediately, even if the background job runner is unavailable.
   const raws = await prisma.rawOpportunity.findMany({
-    where: { sourceRunId: input.runId, processingStatus: "PENDING" },
+    where: { sourceId: input.sourceId, processingStatus: "PENDING" },
     select: { id: true },
   });
 
   for (const raw of raws) {
-    await enqueueProcessOpportunity({
-      rawOpportunityId: raw.id,
-      sourceId: input.sourceId,
-    });
+    try {
+      await processPipelineJob({
+        name: PROCESS_OPPORTUNITY_JOB,
+        payload: { rawOpportunityId: raw.id, sourceId: input.sourceId },
+      });
+    } catch (error) {
+      logger.error(
+        { err: error, rawOpportunityId: raw.id, runId: input.runId },
+        "ingestion_opportunity_processing_failed",
+      );
+    }
   }
 
   await prisma.source.update({
@@ -181,7 +190,7 @@ export async function finalizeIngestion(input: {
   });
 
   logger.info(
-    { runId: input.runId, sourceId: input.sourceId, enqueued: raws.length },
+    { runId: input.runId, sourceId: input.sourceId, processed: raws.length },
     "ingestion_finalized",
   );
 }
