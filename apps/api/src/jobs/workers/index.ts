@@ -6,3 +6,4 @@ export * from "./document.worker";
 export * from "./maintenance.worker";
 export * from "./webhook.worker";
 export * from "./verificationBatch.worker";
+export * from "./sourceDiscovery.worker";

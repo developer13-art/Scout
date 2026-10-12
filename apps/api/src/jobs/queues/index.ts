@@ -5,3 +5,4 @@ export * from "./apify.queue";
 export * from "./document.queue";
 export * from "./maintenance.queue";
 export * from "./webhook.queue";
+export * from "./sourceDiscovery.queue";

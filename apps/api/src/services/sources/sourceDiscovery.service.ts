@@ -16,6 +16,7 @@ import {
   type CandidateAssessment,
   type DiscoverySearchResult,
 } from "./sourceDiscoveryAnalysis.service";
+import { enqueueSourceDiscovery } from "../../jobs/definitions/runSourceDiscovery.job";
 
 type SuggestionMetadata = Record<string, unknown>;
 type CreateSourceDiscoveryRunInput = {
@@ -44,7 +45,26 @@ export async function createRun(input: CreateSourceDiscoveryRunInput, requestedB
     },
   });
 
-  void processRun(run, queries);
+  try {
+    await enqueueSourceDiscovery({ runId: run.id });
+  } catch (error) {
+    try {
+      await prisma.sourceDiscoveryRun.update({
+        where: { id: run.id },
+        data: {
+          status: "FAILED",
+          errorMessage: error instanceof Error ? error.message : "Could not queue source discovery",
+          processedAt: new Date(),
+        },
+      });
+    } catch (statusError) {
+      logger.error(
+        { err: statusError, discoveryRunId: run.id },
+        "source_discovery_queue_failure_status_update_failed",
+      );
+    }
+    throw error;
+  }
   return run;
 }
 
@@ -84,7 +104,22 @@ async function processRun(run: SourceDiscoveryRun, queries: string[]): Promise<v
       );
     }
     logger.error({ err: error, discoveryRunId: run.id }, "source_discovery_failed");
+    throw error;
   }
+}
+
+export async function processSourceDiscoveryRun(runId: string): Promise<void> {
+  const run = await prisma.sourceDiscoveryRun.findUnique({ where: { id: runId } });
+  if (!run) throw new NotFoundError("Source discovery run not found");
+
+  const queries = Array.isArray(run.queries)
+    ? run.queries.filter((query): query is string => typeof query === "string")
+    : [];
+  if (queries.length === 0) {
+    throw new ValidationError("Source discovery run does not contain any search strategies");
+  }
+
+  await processRun(run, queries);
 }
 
 export async function getOverview() {

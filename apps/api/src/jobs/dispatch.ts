@@ -14,6 +14,7 @@ import { RUN_APIFY_ACTOR_JOB } from "./definitions/runApifyActor.job";
 import { SEND_NOTIFICATION_JOB } from "./definitions/sendNotification.job";
 import { DELIVER_WEBHOOK_JOB } from "./definitions/deliverWebhook.job";
 import { VERIFY_SOURCE_RUN_JOB } from "./definitions/verifySourceRun.job";
+import { RUN_SOURCE_DISCOVERY_JOB } from "./definitions/runSourceDiscovery.job";
 import { processApifyJob } from "./workers/apify.worker";
 import { processDocumentJob } from "./workers/document.worker";
 import { processMaintenanceJob } from "./workers/maintenance.worker";
@@ -22,6 +23,7 @@ import { processNotificationJob } from "./workers/notification.worker";
 import { processPipelineJob } from "./workers/pipeline.worker";
 import { processWebhookJob } from "./workers/webhook.worker";
 import { processVerificationBatchJob } from "./workers/verificationBatch.worker";
+import { processSourceDiscoveryJob } from "./workers/sourceDiscovery.worker";
 
 export interface QueuedJob {
   id: string;
@@ -55,6 +57,8 @@ export async function dispatchDatabaseJob(job: QueuedJob): Promise<void> {
       return processWebhookJob(input);
     case VERIFY_SOURCE_RUN_JOB:
       return processVerificationBatchJob(input);
+    case RUN_SOURCE_DISCOVERY_JOB:
+      return processSourceDiscoveryJob(input);
     default:
       throw new Error(`No database job handler is registered for "${job.name}"`);
   }
