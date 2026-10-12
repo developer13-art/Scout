@@ -138,6 +138,13 @@ export function Onboarding() {
   const savePersonal = async () => {
     if (!name.trim()) throw new Error("Add your name to complete your profile.");
     if (!countryCode) throw new Error("Choose your country to continue.");
+    const normalizedUsername = username.trim().replace(/^@/, "").toLowerCase();
+    const profileUsername = normalizedUsername.includes("@")
+      ? undefined
+      : normalizedUsername || undefined;
+    if (profileUsername && !/^[a-z0-9_]{3,24}$/.test(profileUsername)) {
+      throw new Error("Username must be 3–24 characters and use only letters, numbers, and underscores.");
+    }
 
     const userType: UserType = identities.some((item) => item.toLowerCase().includes("student"))
       ? "STUDENT"
@@ -153,7 +160,7 @@ export function Onboarding() {
       countryCode,
     });
     await userService.updateProfile({
-      username: username.trim().replace(/^@/, "") || undefined,
+      username: profileUsername,
       userType,
       workspaceIntent: "PERSONAL",
       professionalIdentities: identities,
@@ -337,7 +344,15 @@ export function Onboarding() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input label="Full name" autoComplete="name" required value={name} onChange={(event) => setName(event.target.value)} />
-                  <Input label="Username" placeholder="yourname" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} />
+                  <Input
+                    label="Username"
+                    name="profile-username"
+                    placeholder="yourname"
+                    autoComplete="off"
+                    hint="Optional: 3–24 letters, numbers, or underscores."
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                  />
                   <Input label="Phone" type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} />
                   <Input label="City or region" autoComplete="address-level2" placeholder="City, region" value={city} onChange={(event) => setCity(event.target.value)} />
                   <Select
