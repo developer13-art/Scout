@@ -1,30 +1,3 @@
-
-flowchart TD
-    A["Receive source event"] --> B["Validate and persist event"]
-    B --> C{"Duplicate event?"}
-    C -- Yes --> D["Record duplicate delivery; do not repeat action"]
-    C -- No --> E["Resolve active synchronization rules"]
-    E --> F{"Authorized and eligible?"}
-    F -- No --> G["Record skipped or blocked outcome"]
-    F -- Yes --> H["Resolve destination mappings"]
-    H --> I["Calculate and validate destination quantities"]
-    I --> J{"All required checks pass?"}
-    J -- No --> K["Block affected destination and report reason"]
-    J -- Yes --> L["Create durable destination operations"]
-    L --> M["Dispatch independently"]
-    M --> N{"Exchange outcome"}
-    N -- Confirmed --> O["Track order and fills"]
-    N -- Rejected --> P["Record failure; assess recovery"]
-    N -- Unknown --> Q["Reconcile before any retry"]
-    P --> R["Update group status"]
-    O --> S["Reconcile destination state"]
-    Q --> S
-    S --> R
-    G --> R
-    K --> R
-
-
-
 # Scout — The Global Opportunity Intelligence Network
 
 > **Discover. Understand. Match. Verify. Act. Build Your Reputation.**
